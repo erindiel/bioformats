@@ -133,6 +133,19 @@ public class LeicaSCNReader extends BaseTiffReader {
     return i.pixels.lookupDimension(dz, dc, dr).ifd;
   }
 
+  private boolean imageUndefined(int no){
+    int s = getCoreIndex();
+    Image i = handler.imageMap.get(s);
+
+    int[] dims = getZCTCoords(no);
+    int dz = dims[0];
+    int dc = dims[1];
+    int dr = s - getParent(s);
+
+    int z = i.pixels.lookupDimension(dz, dc, dr).z;
+    return !(z == dz);
+  }
+
   /**
    * @see loci.formats.IFormatReader#openBytes(int, byte[], int, int, int, int)
    */
@@ -145,6 +158,10 @@ public class LeicaSCNReader extends BaseTiffReader {
       initTiffParser();
     }
     int ifd = imageIFD(no);
+    boolean undefined = imageUndefined(no);
+    if (undefined) {
+      return buf;
+    }
     tiffParser.getSamples(ifds.get(ifd), buf, x, y, w, h);
     return buf;
   }
@@ -791,6 +808,14 @@ public class LeicaSCNReader extends BaseTiffReader {
     public Dimension lookupDimension(int z, int c, int resolution) {
       for (Dimension d : dims) {
         if (d.z == z && d.c == c && d.r == resolution) {
+          return d;
+        }
+      }
+      for (Dimension d : dims) {
+        // could check if z is max z, but potentially there are cases
+        // where the z mismatch > 1
+        //if (d.c == c && d.r == resolution && z == (sizeZ - 1)) {
+        if (d.c == c && d.r == resolution) {
           return d;
         }
       }
